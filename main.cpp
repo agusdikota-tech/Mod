@@ -1,0 +1,53 @@
+#include <Geode/Geode.hpp>
+#include <Geode/modify/PlayLayer.hpp>
+#include <vector>
+
+using namespace geode::prelude;
+
+struct InputEvent {
+    int frameRecorded;
+    int targetFrame;
+};
+
+class $modify(InputBufferPlayLayer, PlayLayer) {
+    struct Fields {
+        std::vector<InputEvent> buffer;
+        int tickMargin = 16;
+    };
+
+    void update(float dt) {
+        PlayLayer::update(dt);
+
+        if (!m_isPaused) {
+            int currentFrame = m_gameState.m_currentPhysicsTick;
+
+            for (auto it = m_fields->buffer.begin(); it != m_fields->buffer.end();) {
+                if (it->targetFrame <= currentFrame) {
+                    executeGameJump();
+                    it = m_fields->buffer.erase(it);
+                } else {
+                    ++it;
+                }
+            }
+        }
+    }
+
+    void handleButton(bool down, int button, bool isPlayer1) {
+        if (down && isPlayer1 && button == 0) { 
+            registerClick();
+            return;
+        }
+        
+        PlayLayer::handleButton(down, button, isPlayer1);
+    }
+
+    void registerClick() {
+        int currentFrame = m_gameState.m_currentPhysicsTick;
+        m_fields->buffer.push_back({currentFrame, currentFrame + m_fields->tickMargin});
+        log::info("Input en frame {}, programado para frame {}", currentFrame, currentFrame + m_fields->tickMargin);
+    }
+
+    void executeGameJump() {
+        PlayLayer::handleButton(true, 0, true);
+    }
+};
